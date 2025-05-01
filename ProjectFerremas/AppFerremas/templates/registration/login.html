@@ -1,0 +1,43 @@
+{% extends 'index.html' %}
+{% load static %}
+{% block title %}Iniciar Sesion | Ferremas {% endblock %}
+
+
+{% block content %}
+<body class="container-login">
+    <form class="form-login" method="post" action="{% url 'login' %}">
+        <img src="" alt="">
+        <h2>Ingresar al Sistema</h2>
+        {% csrf_token %}
+        <h6>USUARIO: </h6>
+        <input type="text" name="username" id="" placeholder="Nombre de Usuario">
+        <br>
+        <br>
+        <h6>CONTRASEÑA: </h6>
+        <input type="password" name="password" id="" placeholder="Contraseña">
+        <br>
+        <button type="submit">Ingresar</button>
+        <br>
+        {% if form.errors %}
+            <p>Correo electronico o contraseña incorrecta. <a class="animate-link-login" href="{% url 'password_reset' %}">¿Olvidó su contraseña?</a></p>
+        {% endif %}
+        {% if next %}
+            {% if user.is_authenticated %}
+                <p>Su cuenta no tiene acceso a esta página. Para continuar,
+                inicie sesión con una cuenta que tenga acceso.</p>
+            {% else %}
+                <p>Por favor inicie sesión para ver esta página.</p>
+            {% endif %}
+        {% endif %}
+    </form>
+</body>
+<footer>
+    
+</footer>
+
+{% endblock %}
+
+
+
+
+</html>

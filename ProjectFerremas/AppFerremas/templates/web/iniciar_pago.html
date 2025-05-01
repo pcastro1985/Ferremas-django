@@ -1,0 +1,27 @@
+{% extends 'index.html' %}
+
+{% block content %}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Iniciar Pago</title>
+</head>
+<body>
+    <h1>Iniciar Pago</h1>
+    <h2>Total: {{ total }}</h2>
+    <ul>
+        {% for articulo in articulo %}
+            <li>{{ articulo.nombre_articulo }} - {{ articulo.precio }} x {{ carrito|get_item:articulo.id }}</li>
+        {% endfor %}
+    </ul>
+    <form action="{% url 'procesar_pago' %}" method="post">
+        {% csrf_token %}
+        <button type="submit">Pagar</button>
+    </form>
+</body>
+</html>
+
+{% endblock %}

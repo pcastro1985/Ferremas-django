@@ -1,0 +1,48 @@
+{% extends 'index.html' %}
+
+{% block content %}
+{% load static %}
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmación de Pago</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5 d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="card p-4" style="max-width: 500px; width: 100%;">
+            <div class="card-body text-center">
+                <div class="alert alert-success" role="alert">
+                    Transacción confirmada con éxito. Serás redirigido a la página principal en unos segundos.
+                </div>
+                <p>Detalles de la transacción:</p>
+                <ul class="list-unstyled">
+                    <li>Orden de compra: <strong>{{ response.buy_order }}</strong></li>
+                    <li>Fecha de transacción: <strong>{{ response.transaction_date }}</strong></li>
+                    <li>Monto: <strong>${{ response.amount }}</strong></li>
+                    <li>Código de autorización: <strong>{{ response.authorization_code }}</strong></li>
+                </ul>
+                <div class="d-flex justify-content-center mt-3">
+                    <div class="loader"></div> 
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        setTimeout(function(){
+            window.location.href = "{% url 'tienda' %}";
+        }, 60000);  
+    </script>
+</body>
+</html>
+
+
+
+{% endblock %}

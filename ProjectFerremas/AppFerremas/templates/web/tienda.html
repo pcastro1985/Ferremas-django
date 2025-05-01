@@ -1,0 +1,57 @@
+{% extends 'index.html' %}
+
+{% block title %} Tienda | Ferremas {% endblock %}
+
+{% block content %}
+
+<h1>Nuestros productos</h1>
+
+
+<div class="product-card" data-id-articulo="1">
+    <h2 class="nombre">Taladro</h2>
+    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS4sKI1wDShd0KVa4CR-fDrMBMu7VN_I4UtC2lTUDw6XQ&s" alt="Imagen del Producto 1" style="width: 200px; height: auto;">
+    <p class="product-description">Descripción del producto 1</p>
+    <p class="precio">Precio: $13.990</p>
+    <form action="{% url 'agregar_al_carrito' %}" method="post" class="d-inline" id="form-agregar-al-carrito-1">
+        {% csrf_token %}
+        <input type="hidden" name="nombre_articulo" id="nombre_articulo" value="Taladro">
+        <input type="hidden" name="precio" id="precio" value="13990">
+        <input type="hidden" name="id_articulo" id="id_articulo" value="">
+        <input type="hidden" name="unique_id" value="{{ unique_id }}">
+        <button type="submit" class="btn btn-secondary">Agregar al carrito</button>
+    </form>
+</div>
+
+<div class="product-card" data-id-articulo="2">
+    <h2 class="nombre">Sierra</h2>
+    <img src="https://http2.mlstatic.com/D_NQ_NP_787080-MLA53616798949_022023-O.webp" alt="Imagen del Producto 2" style="width: 200px; height: auto;">
+    <p class="product-description">Descripción del producto 2</p>
+    <p class="precio">Precio: $26.990</p>
+    <form action="{% url 'agregar_al_carrito' %}" method="post" class="d-inline" id="form-agregar-al-carrito-2">
+        {% csrf_token %}
+        <input type="hidden" name="nombre_articulo" id="nombre_articulo" value="Sierra">
+        <input type="hidden" name="precio" id="precio" value="26990">
+        <input type="hidden" name="id_articulo" id="id_articulo" value="">
+        <input type="hidden" name="unique_id" value="{{ unique_id }}">
+        <button type="submit" class="btn btn-secondary">Agregar al carrito</button>
+    </form>
+</div>
+
+<div class="product-card" data-id-articulo="3">
+    <h2 class="nombre_articulo">Lijadora eléctrica</h2>
+    <img src="https://imagedelivery.net/4fYuQyy-r8_rpBpcY7lH_A/sodimacCL/45298X_01/w=800,h=800" alt="Imagen del Producto 3" style="width: 200px; height: auto;">
+    <p class="product-description">Descripción del producto 3</p>
+    <p class="precio">Precio: $17.990</p>
+    <p class="cantidad">Cantidad: 1</p>
+    <form action="{% url 'agregar_al_carrito' %}" method="post" class="d-inline" id="form-agregar-al-carrito-3">
+        {% csrf_token %}
+        <input type="hidden" name="nombre_articulo" id="nombre_articulo" value="Lijadora eléctrica">
+        <input type="hidden" name="precio" id="precio" value="17990">
+        <input type="hidden" name="cantidad" id="cantidad" value="">
+        <input type="hidden" name="id" id="id" value="">
+        <input type="hidden" name="unique_id" value="{{ unique_id }}">
+        <button type="submit" class="btn btn-secondary">Agregar al carrito</button>
+    </form>
+</div>
+
+{% endblock %}

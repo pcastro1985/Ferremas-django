@@ -1,0 +1,43 @@
+{% extends 'index.html' %}
+
+
+{% block content %}
+
+{% if articulos %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Nombre del Artículo</th>  
+                <th>Precio</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for art in articulos %}
+            <tr>
+                <td>{{ art.nombre_articulo }}</td>            
+                <td>${{ art.precio }}</td>
+            </tr>
+            {% endfor %}
+                <tr>
+                <td colspan="3"><strong>Total:</strong></td>
+                <td><strong>${{ total }}</strong></td>
+                </tr>
+            
+    
+        </tbody>
+    </table>
+    
+    <form action="{% url 'eliminar_carrito' %}" method="post" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Vaciar Carrito</button>
+    </form>
+    <form action="{% url 'iniciar_pago' %}" method="post" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary">Comprar</button>
+    </form>
+{% else %}
+    <p>No hay artículos en el carrito.</p>
+{% endif %}
+
+{% endblock %}
