@@ -42,25 +42,23 @@
         {% for producto in productos %}
             {# Tarjeta de Producto Individual - Asegúrate que data-category-id se genera #}
             <div class="product-card bg-dark text-white"
-                 data-id-articulo="{{ producto.id_producto }}"
-                 data-category-id="{{ producto.categoria_id_categoria | default:'' }}"> {# <-- CLAVE: Este atributo debe tener el ID de categoría del producto #}
+            data-id-articulo="{{ producto.id_producto }}"
+            data-category-id="{{ producto.categoria_id_categoria | default:'' }}"
+            {# Almacenar todos los datos necesarios para el modal directamente en la tarjeta #}
+            data-nombre="{{ producto.nombre }}"
+            data-imagen="{{ producto.url_imagen | default:'https://via.placeholder.com/200x200.png?text=Sin+Imagen' }}"
+            data-descripcion="{{ producto.descripcion | default:'Descripción no disponible' }}"
+            data-precio="{{ producto.valor | default:'Consultar' }}"
+            data-precio-form="{{ producto.precio_form | default:0 }}"
+            data-marca="{{ producto.marca | default:'' }}"
+            data-codigo="{{ producto.codigo_interno | default:'' }}"
+            >
 
                 <h2 class="nombre">{{ producto.nombre }}</h2>
                 <img src="{{ producto.url_imagen }}" alt="Imagen de {{ producto.nombre }}">
                 <p class="product-description text-white">{{ producto.descripcion | default:"Descripción no disponible" }}</p>
                 <p class="precio text-white">Precio: ${{ producto.valor | default:"Consultar" }}</p> {# Usando producto.valor #}
-                <form action="{% url 'agregar_al_carrito' %}" method="post" class="d-inline" id="form-agregar-al-carrito-{{ producto.id_producto }}">
-                    {% csrf_token %}
-                    <input type="hidden" name="id_articulo" value="{{ producto.id_producto }}">
-                    <input type="hidden" name="nombre_articulo" value="{{ producto.nombre }}">
-                    <input type="hidden" name="precio" value="{{ producto.valor | default:0 }}"> {# Usando producto.valor #}
-                    <input type="hidden" name="marca" value="{{ producto.marca | default:'' }}">
-                    <input type="hidden" name="codigo_interno" value="{{ producto.codigo_interno | default:'' }}">
-                    <input type="hidden" name="unique_id" value="{{ unique_id }}">
-                    <button type="submit" class="btn btn-secondary" {% if not producto.valor or producto.valor <= 0 %}disabled title="Precio no disponible"{% endif %}>
-                        Agregar al carrito
-                    </button>
-                </form>
+                <button type="button" class="btn btn-outline-primary btn-ver-mas">Ver más</button>
             </div>
         {% endfor %}
     </div>
@@ -68,6 +66,57 @@
     <p>No hay productos disponibles en este momento.</p>
 {% endif %}
 
+{# --- INICIO DEL MODAL DE DETALLES DEL PRODUCTO (inicialmente oculto) --- #}
+<div id="product-detail-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content-custom bg-dark">
+        <button class="modal-close-button">×</button> {# Botón para cerrar el modal #}
+        <div class="row">
+            <div class="col-md-5">
+                <img id="modal-product-image" src="" alt="Producto" class="img-fluid rounded">
+            </div>
+            <div class="col-md-7">
+                <h2 id="modal-product-name">Nombre del Producto</h2>
+                <p id="modal-product-description" class="mb-3">Descripción detallada del producto.</p>
+                <p class="h4 mb-3">Precio: $<span id="modal-product-price">0.00</span></p>
+
+                <div class="mb-3">
+                    <label for="modal-sucursal-select" class="form-label">Seleccionar sucursal para ver disponibilidad:</label>
+                    <select id="modal-sucursal-select" name="id_sucursal" class="form-select">
+                        <option value="">-- Elige una sucursal --</option>
+                        {% if sucursales %}
+                            {% for sucursal in sucursales %}
+                                <option value="{{ sucursal.id_sucursal }}">{{ sucursal.nombre }}</option>
+                            {% endfor %}
+                        {% elif error_api_sucursales %}
+                            <option value="" disabled>Error al cargar sucursales</option>
+                        {% else %}
+                            <option value="" disabled>No hay sucursales</option>
+                        {% endif %}
+                    </select>
+                </div>
+                <div id="modal-product-stock-info" class="mb-3" style="min-height: 24px;">
+                    {# Aquí se mostrará el stock, ej: "Stock disponible: 10 unidades" #}
+                    {# El min-height es para evitar saltos de layout mientras carga #}
+                </div>
+
+                {# Formulario para agregar al carrito DENTRO DEL MODAL #}
+                <form action="{% url 'agregar_al_carrito' %}" method="post" id="modal-form-agregar-al-carrito">
+                    {% csrf_token %}
+                    <input type="hidden" name="id_articulo" id="modal-id-articulo" value="">
+                    <input type="hidden" name="nombre_articulo" id="modal-nombre-articulo-form" value="">
+                    <input type="hidden" name="precio" id="modal-precio-form" value="">
+                    <input type="hidden" name="marca" id="modal-marca-form" value="">
+                    <input type="hidden" name="codigo_interno" id="modal-codigo-form" value="">
+                    <input type="hidden" name="id_sucursal_seleccionada" id="modal-id-sucursal-form" value="">
+                    <input type="hidden" name="unique_id" value="{{ unique_id }}">
+
+                    <button type="submit" class="btn btn-success btn-lg w-100">Agregar al carrito</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{# --- FIN DEL MODAL DE DETALLES DEL PRODUCTO --- #}
 {% endblock %}
 
 {% block extra_js %}
@@ -121,6 +170,154 @@
 
         console.log("Event listener añadido al select.");
 
-    }); // Fin de DOMContentLoaded
+
+    // --- Lógica del Modal de Detalles del Producto ---
+    const modal = document.getElementById('product-detail-modal');
+    const modalCloseButton = modal.querySelector('.modal-close-button');
+    const botonesVerMas = document.querySelectorAll('.btn-ver-mas');
+
+    // Elementos del modal a poblar
+    const modalProductName = document.getElementById('modal-product-name');
+    const modalProductImage = document.getElementById('modal-product-image');
+    const modalProductDescription = document.getElementById('modal-product-description');
+    const modalProductPrice = document.getElementById('modal-product-price');
+    const modalSucursalSelect = document.getElementById('modal-sucursal-select');
+    const modalProductStockInfo = document.getElementById('modal-product-stock-info');
+
+    // Inputs del formulario del modal
+    const modalIdArticuloInput = document.getElementById('modal-id-articulo');
+    const modalNombreArticuloFormInput = document.getElementById('modal-nombre-articulo-form');
+    const modalPrecioFormInput = document.getElementById('modal-precio-form');
+    const modalMarcaFormInput = document.getElementById('modal-marca-form');
+    const modalCodigoFormInput = document.getElementById('modal-codigo-form');
+    const modalIdSucursalFormInput = document.getElementById('modal-id-sucursal-form');
+    const modalForm = document.getElementById('modal-form-agregar-al-carrito');
+    let currentProductIdInModal = null; // Para saber qué producto está actualmente en el modal
+
+    function mostrarModal(cardData) {
+        currentProductIdInModal = parseInt(cardData.idArticulo, 10); // Guarda el ID del producto actual
+        modalProductName.textContent = cardData.nombre;
+        modalProductImage.src = cardData.imagen;
+        modalProductImage.alt = "Imagen de " + cardData.nombre;
+        modalProductDescription.textContent = cardData.descripcion;
+        modalProductPrice.textContent = cardData.precio;
+
+        // Poblar los inputs del formulario del modal
+        modalIdArticuloInput.value = cardData.idArticulo; // Obtener de data-id-articulo
+        modalNombreArticuloFormInput.value = cardData.nombre;
+        modalPrecioFormInput.value = cardData.precioForm; // Usar data-precio-form
+        modalMarcaFormInput.value = cardData.marca;
+        modalCodigoFormInput.value = cardData.codigo;
+
+
+        // Limpiar y seleccionar sucursal por defecto (opcional)
+        modalSucursalSelect.value = "";
+        modalIdSucursalFormInput.value = ""; // Limpiar sucursal seleccionada en form
+        modalProductStockInfo.innerHTML = ""; // Limpiar información de stock anterior
+
+        modal.style.display = 'flex'; // Mostrar el modal
+        document.body.style.overflow = 'hidden'; // Evitar scroll del body
+    }
+
+    function cerrarModal() {
+        modal.style.display = 'none'; // Ocultar el modal
+        document.body.style.overflow = 'auto'; // Restaurar scroll del body
+        currentProductIdInModal = null; // Limpiar ID del producto al cerrar
+    }
+
+    botonesVerMas.forEach(button => {
+        button.addEventListener('click', function() {
+            const card = this.closest('.product-card'); // Encuentra la tarjeta padre
+            const cardData = {
+                idArticulo: card.dataset.idArticulo,
+                nombre: card.dataset.nombre,
+                imagen: card.dataset.imagen,
+                descripcion: card.dataset.descripcion,
+                precio: card.dataset.precio,
+                precioForm: card.dataset.precioForm,
+                marca: card.dataset.marca,
+                codigo: card.dataset.codigo
+
+            };
+            mostrarModal(cardData);
+        });
+    });
+
+    if (modalCloseButton) {
+        modalCloseButton.addEventListener('click', cerrarModal);
+    }
+
+    // Cerrar modal si se hace clic fuera del contenido del modal
+    modal.addEventListener('click', function(event) {
+        if (event.target === modal) { // Si el clic es directamente en el overlay
+            cerrarModal();
+        }
+    });
+
+    // --- LÓGICA PARA OBTENER Y MOSTRAR STOCK ---
+    if (modalSucursalSelect) {
+        modalSucursalSelect.addEventListener('change',async function() {
+            const selectedSucursalId = this.value;
+            modalIdSucursalFormInput.value = selectedSucursalId; // Actualiza el input oculto del form
+            modalProductStockInfo.innerHTML = ""; // Limpiar stock anterior
+
+            // Deshabilitar botón de agregar mientras se carga el stock (opcional)
+            const addToCartButton = modal.querySelector('#modal-form-agregar-al-carrito button[type="submit"]');
+            if(addToCartButton) addToCartButton.disabled = true;
+
+
+            if (!selectedSucursalId || !currentProductIdInModal) {
+                if(addToCartButton && selectedSucursalId) addToCartButton.disabled = false; // Habilitar si hay sucursal pero no productoID (raro)
+                return; // No hacer nada si no hay sucursal o producto seleccionado
+            }
+
+            modalProductStockInfo.innerHTML = '<span class="text-muted">Verificando stock...</span>';
+
+            try {
+                const apiUrlStock = `https://apiferremas-production.up.railway.app/apiferremas/productos/stock_sucursal/${selectedSucursalId}`;
+                console.log("Consultando stock en:", apiUrlStock, "para producto ID:", currentProductIdInModal);
+
+                const response = await fetch(apiUrlStock, {
+                    method: 'GET', // GET es el default, pero es bueno ser explícito
+                    headers: {
+                        'Accept': 'application/json',
+                        // No necesitas 'Content-Type' para GET sin cuerpo
+                    },
+                    // timeout no es estándar en fetch, se maneja con AbortController o promesas de timeout
+                });
+
+                if (!response.ok) {
+                    // Si la API devuelve un error HTTP (4xx, 5xx)
+                    let errorMsg = `Error ${response.status} al obtener stock.`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg += ` ${errorData.detail || errorData.message || ''}`;
+                    } catch (e) { /* no hacer nada si el cuerpo del error no es JSON */ }
+                    throw new Error(errorMsg);
+                }
+
+                const stockData = await response.json(); // Array de productos con stock en esa sucursal
+                console.log("Respuesta de stock:", stockData);
+
+                // Buscar el producto actual (currentProductIdInModal) en la respuesta de stock
+                const productoEnStock = stockData.find(item => item.id_producto === currentProductIdInModal);
+
+                if (productoEnStock) {
+                    modalProductStockInfo.innerHTML = `<strong class="${productoEnStock.cantidad > 0 ? 'text-success' : 'text-danger'}">Stock disponible: ${productoEnStock.cantidad} unidad(es)</strong>`;
+                    if(addToCartButton) addToCartButton.disabled = (productoEnStock.cantidad <= 0); // Habilitar/deshabilitar según stock
+                } else {
+                    modalProductStockInfo.innerHTML = '<span class="text-warning">Producto no encontrado en el stock de esta sucursal.</span>';
+                    if(addToCartButton) addToCartButton.disabled = true; // Deshabilitar si no se encuentra
+                }
+
+            } catch (error) {
+                console.error("Error al obtener stock:", error);
+                modalProductStockInfo.innerHTML = `<span class="text-danger">No se pudo verificar el stock. ${error.message || ''}</span>`;
+                if(addToCartButton) addToCartButton.disabled = true; // Deshabilitar en caso de error
+            }
+        });
+    }
+
+});
 </script>
 {% endblock %}

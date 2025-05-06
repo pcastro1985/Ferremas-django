@@ -81,3 +81,50 @@
     background-position: right 0.75rem center;
     background-size: 16px 12px;
  }
+
+/* --- Estilos para el Modal --- */
+.modal-overlay {
+    position: fixed; /* Se queda fijo en la pantalla */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* Fondo semitransparente */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1050; /* Asegura que esté por encima de otros elementos */
+    padding: 20px;
+}
+.modal-content-custom {
+    background-color: #fff;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,.5);
+    width: 100%;
+    max-width: 800px; /* Ancho máximo del modal */
+    max-height: 90vh; /* Alto máximo del modal */
+    overflow-y: auto; /* Scroll si el contenido es muy largo */
+    position: relative; /* Para posicionar el botón de cierre */
+}
+.modal-close-button {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.8rem;
+    font-weight: bold;
+    line-height: 1;
+    color: #000;
+    text-shadow: 0 1px 0 #fff;
+    opacity: .5;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+.modal-close-button:hover {
+    opacity: .8;
+}
+#modal-product-image {
+    max-height: 350px; /* Limita altura de la imagen en el modal */
+    object-fit: contain;
+}
