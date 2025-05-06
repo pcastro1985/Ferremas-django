@@ -1,8 +1,10 @@
 {% extends 'index.html' %}
+{% load static %}
 
 {% block title %} Tienda | Ferremas {% endblock %}
 
 {% block content %}
+<link href="{% static 'css/global.css' %}" rel="stylesheet" />
 
 <h1>Nuestros productos</h1>
 
@@ -56,49 +58,3 @@
 
 {% endblock %}
 
-{% block extra_css %}
-{# Opcional: Añadir algo de CSS para que se vea mejor la cuadrícula #}
-<style>
-    .product-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Columnas responsivas */
-        gap: 20px; /* Espacio entre tarjetas */
-        padding: 20px;
-    }
-    .product-card {
-        border: 1px solid #ddd;
-        padding: 15px;
-        text-align: center;
-        background-color: #f9f9f9;
-        border-radius: 8px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between; /* Empuja el botón hacia abajo */
-    }
-    .product-card img {
-        max-width: 100%;
-        height: 200px; /* Altura fija para imágenes */
-        object-fit: contain; /* Escala la imagen manteniendo aspecto, puede ser 'cover' */
-        margin-bottom: 10px;
-    }
-    .product-card h2 {
-        font-size: 1.2em;
-        margin-bottom: 10px;
-        min-height: 40px; /* Evita saltos de altura por nombres largos/cortos */
-    }
-    .product-description {
-        font-size: 0.9em;
-        color: #555;
-        flex-grow: 1; /* Ocupa el espacio disponible */
-        margin-bottom: 10px;
-    }
-    .product-card .precio {
-        font-weight: bold;
-        color: #333;
-        margin-bottom: 15px;
-    }
-    .product-card form {
-        margin-top: auto; /* Empuja el formulario/botón hacia abajo si es necesario */
-    }
-</style>
-{% endblock %}
