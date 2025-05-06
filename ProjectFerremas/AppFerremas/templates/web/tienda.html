@@ -41,14 +41,14 @@
     <div class="product-grid">
         {% for producto in productos %}
             {# Tarjeta de Producto Individual - Asegúrate que data-category-id se genera #}
-            <div class="product-card"
+            <div class="product-card bg-dark text-white"
                  data-id-articulo="{{ producto.id_producto }}"
                  data-category-id="{{ producto.categoria_id_categoria | default:'' }}"> {# <-- CLAVE: Este atributo debe tener el ID de categoría del producto #}
 
                 <h2 class="nombre">{{ producto.nombre }}</h2>
                 <img src="{{ producto.url_imagen }}" alt="Imagen de {{ producto.nombre }}">
-                <p class="product-description">{{ producto.descripcion | default:"Descripción no disponible" }}</p>
-                <p class="precio">Precio: ${{ producto.valor | default:"Consultar" }}</p> {# Usando producto.valor #}
+                <p class="product-description text-white">{{ producto.descripcion | default:"Descripción no disponible" }}</p>
+                <p class="precio text-white">Precio: ${{ producto.valor | default:"Consultar" }}</p> {# Usando producto.valor #}
                 <form action="{% url 'agregar_al_carrito' %}" method="post" class="d-inline" id="form-agregar-al-carrito-{{ producto.id_producto }}">
                     {% csrf_token %}
                     <input type="hidden" name="id_articulo" value="{{ producto.id_producto }}">
