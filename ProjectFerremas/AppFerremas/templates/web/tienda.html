@@ -8,53 +8,119 @@
 
 <h1>Nuestros productos</h1>
 
-{% if error_api %}
+{# --- COMBOBOX DE CATEGORÍAS --- #}
+<div class="category-filter mb-4">
+    <label for="category-select" class="form-label">Filtrar por categoría:</label>
+    <select name="categoria_id" id="category-select" class="form-select">
+        <option value=""> -- Todas las categorías -- </option> {# Value vacío para "Todas" #}
+        {% if categorias %}
+            {% for categoria in categorias %}
+                {# Asegúrate que el value sea el ID numérico #}
+                <option value="{{ categoria.id_categoria }}">
+                    {{ categoria.nombre }}
+                </option>
+            {% endfor %}
+        {% elif error_api_categorias %}
+            <option value="" disabled>Error al cargar categorías</option>
+        {% else %}
+             <option value="" disabled>No hay categorías disponibles</option>
+        {% endif %}
+    </select>
+</div>
+
+{# --- MENSAJE DE ERROR DE PRODUCTOS --- #}
+{% if error_api_productos %}
     <div class="alert alert-danger" role="alert">
-        {{ error_api }}
+        {{ error_api_productos }}
     </div>
 {% endif %}
 
+{# --- GRID DE PRODUCTOS --- #}
 {% if productos %}
-    <div class="product-grid"> {# Opcional: un contenedor para los productos #}
+    {# Contenedor del Grid #}
+    <div class="product-grid">
         {% for producto in productos %}
-            <div class="product-card" data-id-articulo="{{ producto.id_producto }}">
-                {# Nombre del producto #}
+            {# Tarjeta de Producto Individual - Asegúrate que data-category-id se genera #}
+            <div class="product-card"
+                 data-id-articulo="{{ producto.id_producto }}"
+                 data-category-id="{{ producto.categoria_id_categoria | default:'' }}"> {# <-- CLAVE: Este atributo debe tener el ID de categoría del producto #}
+
                 <h2 class="nombre">{{ producto.nombre }}</h2>
-
-                {# Imagen del producto con manejo de placeholder si es null #}
-                <img src="{{ producto.url_imagen }}" alt="Imagen de {{ producto.nombre }}" style="width: 200px; height: 200px; object-fit: cover;"> 
-
-                {# Descripción del producto #}
+                <img src="{{ producto.url_imagen }}" alt="Imagen de {{ producto.nombre }}">
                 <p class="product-description">{{ producto.descripcion | default:"Descripción no disponible" }}</p>
-
-                {# Precio - ¡AJUSTAR SEGÚN TU LÓGICA! #}
-                <p class="precio">Precio: ${{ producto.valor }}</p>
-
-                {# Formulario para agregar al carrito #}
-                {# Asegúrate que la URL 'agregar_al_carrito' esté definida en tus urls.py #}
+                <p class="precio">Precio: ${{ producto.valor | default:"Consultar" }}</p> {# Usando producto.valor #}
                 <form action="{% url 'agregar_al_carrito' %}" method="post" class="d-inline" id="form-agregar-al-carrito-{{ producto.id_producto }}">
                     {% csrf_token %}
-                    {# Campos ocultos con datos del producto #}
                     <input type="hidden" name="id_articulo" value="{{ producto.id_producto }}">
                     <input type="hidden" name="nombre_articulo" value="{{ producto.nombre }}">
-                    
-                    <input type="hidden" name="precio" value="{{ producto.valor }}">
-                    {# Puedes añadir otros campos si los necesitas para el carrito, ej: marca, codigo_interno #}
-                    <input type="hidden" name="marca" value="{{ producto.marca }}">
-                    <input type="hidden" name="codigo_interno" value="{{ producto.codigo_interno }}">
-                    <input type="hidden" name="unique_id" value="{{ unique_id }}"> {# Pasa el unique_id #}
-
-                    {# Botón - Podrías deshabilitarlo si valor es 0 o "Consultar" #}
-                    <button type="submit" class="btn btn-secondary" {% if producto.valor == 0 %}disabled title="Precio no disponible"{% endif %}>
+                    <input type="hidden" name="precio" value="{{ producto.valor | default:0 }}"> {# Usando producto.valor #}
+                    <input type="hidden" name="marca" value="{{ producto.marca | default:'' }}">
+                    <input type="hidden" name="codigo_interno" value="{{ producto.codigo_interno | default:'' }}">
+                    <input type="hidden" name="unique_id" value="{{ unique_id }}">
+                    <button type="submit" class="btn btn-secondary" {% if not producto.valor or producto.valor <= 0 %}disabled title="Precio no disponible"{% endif %}>
                         Agregar al carrito
                     </button>
                 </form>
             </div>
         {% endfor %}
     </div>
-{% elif not error_api %}
+{% elif not error_api_productos %}
     <p>No hay productos disponibles en este momento.</p>
 {% endif %}
 
 {% endblock %}
 
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("Callback de DOMContentLoaded ejecutado.");
+
+        const categorySelect = document.getElementById('category-select');
+        if (!categorySelect) {
+            console.error("¡ERROR! No se encontró el elemento <select> con id 'category-select'.");
+            return;
+        } else {
+            console.log("Elemento <select> encontrado.");
+        }
+
+        const productCards = document.querySelectorAll('.product-card');
+        if (productCards.length === 0) {
+            console.warn("Advertencia: No se encontraron elementos con la clase '.product-card'.");
+        } else {
+            console.log(`Encontradas ${productCards.length} tarjetas de producto.`);
+        }
+
+        categorySelect.addEventListener('change', function() {
+            console.log("¡Evento 'change' detectado en el select!");
+            const selectedCategoryId = this.value; // Es un string
+            console.log("Categoría seleccionada:", selectedCategoryId, "(Tipo:", typeof selectedCategoryId, ")");
+
+            // *** INICIO DEBUGGING DENTRO DEL BUCLE ***
+            console.log("--- Iniciando filtro de tarjetas ---");
+            productCards.forEach(function(card) {
+                const productCardIdForLog = card.dataset.idArticulo; // Para logs más claros
+                const productCategoryId = card.dataset.categoryId; // Es un string
+
+                // Muestra qué categoría se lee de ESTA tarjeta
+                console.log(` - Producto ID: ${productCardIdForLog}, Su Cat ID: ${productCategoryId} (Tipo: ${typeof productCategoryId})`);
+
+                // Compara strings
+                if (selectedCategoryId === "" || productCategoryId === selectedCategoryId) {
+                    // Intenta MOSTRAR
+                    console.log(`   -> DEBERÍA MOSTRARSE. Quitando clase 'hidden'.`);
+                    card.classList.remove('hidden');
+                } else {
+                    // Intenta OCULTAR
+                    console.log(`   -> DEBERÍA OCULTARSE. Añadiendo clase 'hidden'.`);
+                    card.classList.add('hidden');
+                }
+            });
+            console.log("--- Filtro de tarjetas completado ---");
+            // *** FIN DEBUGGING DENTRO DEL BUCLE ***
+        });
+
+        console.log("Event listener añadido al select.");
+
+    }); // Fin de DOMContentLoaded
+</script>
+{% endblock %}

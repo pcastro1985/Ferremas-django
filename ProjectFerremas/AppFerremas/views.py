@@ -24,9 +24,12 @@ logger = logging.getLogger(__name__)
 
 # Tienda
 def tienda_view(request):
-    api_url = "https://apiferremas-production.up.railway.app/apiferremas/productos/todos"
+    productos_api_url = "https://apiferremas-production.up.railway.app/apiferremas/productos/todos"
+    categorias_api_url = "https://apiferremas-production.up.railway.app/apiferremas/productos/categorias" 
     productos_data = [] # Inicializa como lista vacía por si falla la API
-    error_api = None    # Para guardar un mensaje de error
+    categorias_data = []
+    error_api_productos = None
+    error_api_categorias = None
 
     # Genera un unique_id para el carrito si es necesario (esto depende de tu lógica de carrito)
     # Ejemplo: podrías usar la sesión del usuario o generar uno si no existe
@@ -36,47 +39,75 @@ def tienda_view(request):
         unique_id = request.session.session_key
 
     try:
-        response = requests.get(api_url, timeout=10) # Agrega un timeout
-        response.raise_for_status() # Lanza una excepción para errores HTTP (4xx o 5xx)
-        productos_data = response.json()
-        logger.info(f"Se obtuvieron {len(productos_data)} productos de la API.")
+        # --- Obtener Productos ---
+        logger.info(f"Intentando obtener productos de: {productos_api_url}")
+        prod_response = requests.get(productos_api_url, timeout=10)
+        # Verifica si la respuesta de productos fue exitosa ANTES de intentar parsear JSON
+        if prod_response.ok:
+            productos_data = prod_response.json()
+            logger.info(f"Datos JSON de productos obtenidos. Número: {len(productos_data)}")
+            # --- Procesamiento de productos (precio, imagen, etc.) ---
+            for producto in productos_data:
+                producto['precio_display'] = "Consultar" # Precio por defecto
+                producto['precio_form'] = 0
+                if not producto.get('descripcion'):
+                    producto['descripcion'] = f"{producto.get('nombre', 'Producto')} - {producto.get('marca', '')}"
+                if not producto.get('url_imagen'):
+                    producto['url_imagen'] = 'https://via.placeholder.com/200x200.png?text=Sin+Imagen'
+        else:
+            # Si la API de productos falla, registra el error y asigna mensaje
+            logger.error(f"Error al obtener productos. Código: {prod_response.status_code}, Respuesta: {prod_response.text[:200]}")
+            error_api_productos = f"No se pudieron cargar los productos (Error: {prod_response.status_code})."
+            # Opcional: podrías lanzar una excepción si fallar al cargar productos debe detener todo
+            # prod_response.raise_for_status()
 
-        # --- ¡IMPORTANTE! MANEJO DE DATOS FALTANTES ---
-        # La API no devuelve precio. Debes decidir cómo manejarlo.
-        # Opciones:
-        # 1. ¿Hay otra API para obtener precios?
-        # 2. ¿Tienes los precios en tu base de datos local y los combinas?
-        # 3. Poner un precio por defecto o mensaje "Consultar precio".
-        # Aquí agregaremos un precio de ejemplo y una descripción por defecto para ilustrar.
-        # DEBES AJUSTAR ESTO A TU LÓGICA REAL.
-        for producto in productos_data:
-            if not producto.get('valor'):
-                producto['valor'] = 0 # Valor para el form (o dejar vacío si no se agrega al carrito sin precio)
-            if not producto.get('descripcion'): # Si la descripción viene vacía
-                 producto['descripcion'] = f"{producto.get('nombre', 'Producto')} - {producto.get('marca', '')}"
-            if not producto.get('url_imagen'): # Si la URL de la imagen es null
-                # Usa una imagen placeholder local o de internet
-                producto['url_imagen'] = 'https://placehold.co/600x400?text=Imagen+No+Disponible' # Ejemplo de placeholder
+        # --- Obtener Categorías (Intentar incluso si fallaron los productos) ---
+        logger.info(f"Intentando obtener categorías de: {categorias_api_url}")
+        cat_response = requests.get(categorias_api_url, timeout=5) # Timeout más corto para categorías?
+        if cat_response.ok:
+            categorias_data = cat_response.json()
+            logger.info(f"Datos JSON de categorías obtenidos. Número: {len(categorias_data)}")
+        else:
+            # Si la API de categorías falla, solo registra y asigna mensaje de error
+            logger.warning(f"Error al obtener categorías. Código: {cat_response.status_code}, Respuesta: {cat_response.text[:200]}")
+            error_api_categorias = f"No se pudieron cargar las categorías (Error: {cat_response.status_code})."
+            # No lanzamos excepción aquí, para que la página cargue aunque falten categorías
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error al conectar con la API de productos: {e}")
-        error_api = "No se pudieron cargar los productos en este momento. Inténtalo más tarde."
-        # Puedes decidir si mostrar la página vacía o una página de error específica.
+        # Error de conexión (afecta a la petición que falló)
+        logger.error(f"Error de conexión al intentar acceder a las APIs: {e}", exc_info=True)
+        # Asigna errores si aún no tienen uno por respuesta no-OK
+        if error_api_productos is None:
+             error_api_productos = "Error de conexión al cargar productos."
+        if error_api_categorias is None:
+             error_api_categorias = "Error de conexión al cargar categorías."
+    except Exception as e:
+        # Otros errores (ej. JSON inválido, error inesperado)
+        logger.error(f"Error inesperado procesando datos de API: {e}", exc_info=True)
+        # Asigna errores genéricos si no hay uno específico
+        if error_api_productos is None:
+             error_api_productos = "Ocurrió un error al procesar los productos."
+        if error_api_categorias is None:
+             error_api_categorias = "Ocurrió un error al procesar las categorías."
+
 
     context = {
         'productos': productos_data,
-        'unique_id': unique_id, # Pasa el unique_id al template
-        'error_api': error_api, # Pasa el mensaje de error (si existe)
+        'categorias': categorias_data, # <--- Pasa las categorías al contexto
+        'unique_id': unique_id,
+        'error_api_productos': error_api_productos, # Pasa errores específicos
+        'error_api_categorias': error_api_categorias,
     }
-    return render(request, 'web/tienda.html', context) 
+    logger.info(f"Renderizando plantilla 'web/tienda.html'. Productos: {len(productos_data)}, Categorías: {len(categorias_data)}")
+    return render(request, 'web/tienda.html', context)
 
 # VISTAS.
 def inicio(request):
     context = {}
     return render(request, 'web/inicio.html', context)
 
-def tienda(request):
-    return render(request, 'web/tienda.html')
+# def tienda(request):
+#     return render(request, 'web/tienda.html')
 
 def Carrito(request):
     articulo = articulo.objects.all()
