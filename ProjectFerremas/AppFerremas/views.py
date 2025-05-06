@@ -101,13 +101,93 @@ def tienda_view(request):
     logger.info(f"Renderizando plantilla 'web/tienda.html'. Productos: {len(productos_data)}, Categorías: {len(categorias_data)}")
     return render(request, 'web/tienda.html', context)
 
+def pagina_contacto(request):
+    """
+    Vista para mostrar el formulario de contacto.
+    """
+    # Aquí podrías pasar un formulario de Django si lo usas,
+    # pero para un textarea simple no es estrictamente necesario para el render inicial.
+    return render(request, 'web/contacto.html') # Asegúrate que la ruta sea correcta
+
+def procesar_contacto(request):
+    if request.method == 'POST':
+        mensaje_usuario = request.POST.get('mensaje')
+        api_url_contacto = "https://apiferremas-production.up.railway.app/apiferremas/contacto/contacto"
+
+        if not mensaje_usuario:
+            messages.error(request, 'Por favor, escribe un mensaje antes de enviar.')
+            return redirect('pagina_contacto')
+
+        # Determinar nombre y correo del cliente
+        nombre_cliente = "Cliente Anónimo"
+        correo_cliente = "anonimo@ferremas.com" # Placeholder
+
+        if request.user.is_authenticated:
+            nombre_cliente = request.user.get_full_name()
+            if not nombre_cliente: # Si get_full_name está vacío
+                nombre_cliente = request.user.username
+            correo_cliente = request.user.email
+            if not correo_cliente: # Si el usuario no tiene email registrado
+                correo_cliente = f"{request.user.username}@ferremas-placeholder.com"
+
+        # Preparar el cuerpo (payload) para la API
+        payload = {
+            "nombre_cliente": nombre_cliente,
+            "correo_cliente": correo_cliente,
+            "mensaje": mensaje_usuario
+        }
+
+        try:
+            # Realizar la petición POST a la API
+            # Es buena idea añadir headers y un timeout
+            headers = {'Content-Type': 'application/json'}
+            response = requests.post(api_url_contacto, json=payload, headers=headers, timeout=10)
+
+            # Verificar si la petición fue exitosa (código 2xx)
+            response.raise_for_status() # Lanza una excepción para errores HTTP 4xx/5xx
+
+            # Procesar la respuesta de la API (opcional, pero bueno para confirmar)
+            api_response_data = response.json()
+            if api_response_data.get("status") == "ok":
+                messages.success(request, api_response_data.get("mensaje", "¡Gracias por tu mensaje! Lo hemos recibido."))
+            else:
+                # Si la API devuelve un status que no es "ok" pero no es un error HTTP
+                error_msg = api_response_data.get("mensaje", "Hubo un problema al registrar tu mensaje en el sistema externo.")
+                messages.error(request, error_msg)
+                # Podrías querer loggear api_response_data aquí para depuración
+
+        except requests.exceptions.HTTPError as e:
+            # Errores HTTP devueltos por la API (4xx, 5xx)
+            error_detail = f"Error de la API ({e.response.status_code})"
+            try:
+                # Intenta obtener más detalles del cuerpo de la respuesta de error de la API
+                api_error_data = e.response.json()
+                error_detail += f": {api_error_data.get('mensaje') or api_error_data.get('detail') or e.response.text}"
+            except ValueError: # Si la respuesta de error no es JSON
+                error_detail += f": {e.response.text[:200]}" # Muestra parte del texto
+            messages.error(request, f'Hubo un error al enviar tu mensaje al sistema. {error_detail}')
+            # logger.error(f"Error HTTP al llamar a API de contacto: {e.response.status_code} - {e.response.text}")
+
+        except requests.exceptions.RequestException as e:
+            # Errores de conexión, timeout, etc.
+            messages.error(request, f'Hubo un problema de conexión al intentar enviar tu mensaje: {e}. Por favor, inténtalo más tarde.')
+            # logger.error(f"Error de conexión al llamar a API de contacto: {e}")
+
+        except Exception as e:
+            # Otros errores inesperados
+            messages.error(request, f'Ocurrió un error inesperado: {e}. Por favor, inténtalo de nuevo.')
+            # logger.error(f"Error inesperado en procesar_contacto: {e}", exc_info=True)
+
+        return redirect('pagina_contacto') # Redirige de nuevo a la página de contacto
+
+    # Si no es POST, redirigir a la página de contacto
+    return redirect('pagina_contacto')
+
+
 # VISTAS.
 def inicio(request):
     context = {}
     return render(request, 'web/inicio.html', context)
-
-# def tienda(request):
-#     return render(request, 'web/tienda.html')
 
 def Carrito(request):
     articulo = articulo.objects.all()

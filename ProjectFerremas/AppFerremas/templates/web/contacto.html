@@ -1,0 +1,57 @@
+{% extends 'index.html' %}
+{% load static %}
+
+{% block title %}Contáctanos | Ferremas{% endblock %}
+
+{% block content %}
+<div class="container mt-5"> {# Contenedor principal para centrar y dar margen #}
+    <div class="row justify-content-center"> {# Fila para centrar el contenido del formulario #}
+        <div class="col-md-8 col-lg-6"> {# Columna para definir el ancho del formulario #}
+
+            <h1 class="mb-4 text-center">Contáctanos</h1>
+            <p class="mb-4 text-center">
+                ¿Tienes alguna pregunta, sugerencia o necesitas ayuda? Déjanos tu mensaje y te responderemos lo antes posible.
+            </p>
+
+            {# Aquí puedes agregar mensajes de éxito o error si procesas el formulario con Django #}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            {# El action puede apuntar a una URL que procese el formulario #}
+            {# Si aún no tienes una vista para procesar, puedes dejarlo como "#" o una URL placeholder #}
+            <form method="POST" action="{% url 'procesar_contacto' %}"> 
+                {% csrf_token %} {# Importante para la seguridad en Django #}
+
+                <div class="mb-3">
+                    <label for="mensaje" class="form-label">Tu Mensaje:</label>
+                    <textarea class="form-control" id="mensaje" name="mensaje" rows="6" placeholder="Escribe tu mensaje aquí..." required></textarea>
+                    <div class="invalid-feedback">
+                        Por favor, ingresa tu mensaje.
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2"> {# d-grid para que el botón ocupe todo el ancho si quieres #}
+                    <button type="submit" class="btn btn-primary btn-lg">Enviar Mensaje</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Puedes añadir estilos personalizados aquí si es necesario */
+    /* Por ejemplo, para ajustar el tamaño del textarea o márgenes específicos */
+    /* .form-control#mensaje {
+        min-height: 150px;
+    } */
+</style>
+{% endblock %}

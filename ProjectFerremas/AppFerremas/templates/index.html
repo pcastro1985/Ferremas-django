@@ -30,7 +30,7 @@
                         <a class="nav-link {% if request.resolver_match.url_name == 'inicio' %}active{% endif %}" aria-current="page" href="{% url 'inicio' %}">Inicio</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Contactanos</a> {# Cambia el href si tienes una URL #}
+                        <a class="nav-link" href="{% url 'pagina_contacto' %}">Contactanos</a> 
                     </li>
                     {% if user.is_authenticated %}
                     <li class="nav-item">
