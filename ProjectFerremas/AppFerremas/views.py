@@ -14,6 +14,61 @@ import hashlib
 from django.conf import settings
 from transbank.common.integration_type import IntegrationType
 from django.urls import reverse
+import requests
+from django.conf import settings
+import logging 
+
+# Configura un logger básico
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Tienda
+def tienda_view(request):
+    api_url = "https://apiferremas-production.up.railway.app/apiferremas/productos/todos"
+    productos_data = [] # Inicializa como lista vacía por si falla la API
+    error_api = None    # Para guardar un mensaje de error
+
+    # Genera un unique_id para el carrito si es necesario (esto depende de tu lógica de carrito)
+    # Ejemplo: podrías usar la sesión del usuario o generar uno si no existe
+    unique_id = request.session.session_key
+    if not unique_id:
+        request.session.create()
+        unique_id = request.session.session_key
+
+    try:
+        response = requests.get(api_url, timeout=10) # Agrega un timeout
+        response.raise_for_status() # Lanza una excepción para errores HTTP (4xx o 5xx)
+        productos_data = response.json()
+        logger.info(f"Se obtuvieron {len(productos_data)} productos de la API.")
+
+        # --- ¡IMPORTANTE! MANEJO DE DATOS FALTANTES ---
+        # La API no devuelve precio. Debes decidir cómo manejarlo.
+        # Opciones:
+        # 1. ¿Hay otra API para obtener precios?
+        # 2. ¿Tienes los precios en tu base de datos local y los combinas?
+        # 3. Poner un precio por defecto o mensaje "Consultar precio".
+        # Aquí agregaremos un precio de ejemplo y una descripción por defecto para ilustrar.
+        # DEBES AJUSTAR ESTO A TU LÓGICA REAL.
+        for producto in productos_data:
+            if not producto.get('valor'):
+                producto['valor'] = 0 # Valor para el form (o dejar vacío si no se agrega al carrito sin precio)
+            if not producto.get('descripcion'): # Si la descripción viene vacía
+                 producto['descripcion'] = f"{producto.get('nombre', 'Producto')} - {producto.get('marca', '')}"
+            if not producto.get('url_imagen'): # Si la URL de la imagen es null
+                # Usa una imagen placeholder local o de internet
+                producto['url_imagen'] = 'https://placehold.co/600x400?text=Imagen+No+Disponible' # Ejemplo de placeholder
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error al conectar con la API de productos: {e}")
+        error_api = "No se pudieron cargar los productos en este momento. Inténtalo más tarde."
+        # Puedes decidir si mostrar la página vacía o una página de error específica.
+
+    context = {
+        'productos': productos_data,
+        'unique_id': unique_id, # Pasa el unique_id al template
+        'error_api': error_api, # Pasa el mensaje de error (si existe)
+    }
+    return render(request, 'web/tienda.html', context) 
 
 # VISTAS.
 def inicio(request):

@@ -6,52 +6,99 @@
 
 <h1>Nuestros productos</h1>
 
+{% if error_api %}
+    <div class="alert alert-danger" role="alert">
+        {{ error_api }}
+    </div>
+{% endif %}
 
-<div class="product-card" data-id-articulo="1">
-    <h2 class="nombre">Taladro</h2>
-    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS4sKI1wDShd0KVa4CR-fDrMBMu7VN_I4UtC2lTUDw6XQ&s" alt="Imagen del Producto 1" style="width: 200px; height: auto;">
-    <p class="product-description">Descripción del producto 1</p>
-    <p class="precio">Precio: $13.990</p>
-    <form action="{% url 'agregar_al_carrito' %}" method="post" class="d-inline" id="form-agregar-al-carrito-1">
-        {% csrf_token %}
-        <input type="hidden" name="nombre_articulo" id="nombre_articulo" value="Taladro">
-        <input type="hidden" name="precio" id="precio" value="13990">
-        <input type="hidden" name="id_articulo" id="id_articulo" value="">
-        <input type="hidden" name="unique_id" value="{{ unique_id }}">
-        <button type="submit" class="btn btn-secondary">Agregar al carrito</button>
-    </form>
-</div>
+{% if productos %}
+    <div class="product-grid"> {# Opcional: un contenedor para los productos #}
+        {% for producto in productos %}
+            <div class="product-card" data-id-articulo="{{ producto.id_producto }}">
+                {# Nombre del producto #}
+                <h2 class="nombre">{{ producto.nombre }}</h2>
 
-<div class="product-card" data-id-articulo="2">
-    <h2 class="nombre">Sierra</h2>
-    <img src="https://http2.mlstatic.com/D_NQ_NP_787080-MLA53616798949_022023-O.webp" alt="Imagen del Producto 2" style="width: 200px; height: auto;">
-    <p class="product-description">Descripción del producto 2</p>
-    <p class="precio">Precio: $26.990</p>
-    <form action="{% url 'agregar_al_carrito' %}" method="post" class="d-inline" id="form-agregar-al-carrito-2">
-        {% csrf_token %}
-        <input type="hidden" name="nombre_articulo" id="nombre_articulo" value="Sierra">
-        <input type="hidden" name="precio" id="precio" value="26990">
-        <input type="hidden" name="id_articulo" id="id_articulo" value="">
-        <input type="hidden" name="unique_id" value="{{ unique_id }}">
-        <button type="submit" class="btn btn-secondary">Agregar al carrito</button>
-    </form>
-</div>
+                {# Imagen del producto con manejo de placeholder si es null #}
+                <img src="{{ producto.url_imagen }}" alt="Imagen de {{ producto.nombre }}" style="width: 200px; height: 200px; object-fit: cover;"> 
 
-<div class="product-card" data-id-articulo="3">
-    <h2 class="nombre_articulo">Lijadora eléctrica</h2>
-    <img src="https://imagedelivery.net/4fYuQyy-r8_rpBpcY7lH_A/sodimacCL/45298X_01/w=800,h=800" alt="Imagen del Producto 3" style="width: 200px; height: auto;">
-    <p class="product-description">Descripción del producto 3</p>
-    <p class="precio">Precio: $17.990</p>
-    <p class="cantidad">Cantidad: 1</p>
-    <form action="{% url 'agregar_al_carrito' %}" method="post" class="d-inline" id="form-agregar-al-carrito-3">
-        {% csrf_token %}
-        <input type="hidden" name="nombre_articulo" id="nombre_articulo" value="Lijadora eléctrica">
-        <input type="hidden" name="precio" id="precio" value="17990">
-        <input type="hidden" name="cantidad" id="cantidad" value="">
-        <input type="hidden" name="id" id="id" value="">
-        <input type="hidden" name="unique_id" value="{{ unique_id }}">
-        <button type="submit" class="btn btn-secondary">Agregar al carrito</button>
-    </form>
-</div>
+                {# Descripción del producto #}
+                <p class="product-description">{{ producto.descripcion | default:"Descripción no disponible" }}</p>
 
+                {# Precio - ¡AJUSTAR SEGÚN TU LÓGICA! #}
+                <p class="precio">Precio: ${{ producto.valor }}</p>
+
+                {# Formulario para agregar al carrito #}
+                {# Asegúrate que la URL 'agregar_al_carrito' esté definida en tus urls.py #}
+                <form action="{% url 'agregar_al_carrito' %}" method="post" class="d-inline" id="form-agregar-al-carrito-{{ producto.id_producto }}">
+                    {% csrf_token %}
+                    {# Campos ocultos con datos del producto #}
+                    <input type="hidden" name="id_articulo" value="{{ producto.id_producto }}">
+                    <input type="hidden" name="nombre_articulo" value="{{ producto.nombre }}">
+                    
+                    <input type="hidden" name="precio" value="{{ producto.valor }}">
+                    {# Puedes añadir otros campos si los necesitas para el carrito, ej: marca, codigo_interno #}
+                    <input type="hidden" name="marca" value="{{ producto.marca }}">
+                    <input type="hidden" name="codigo_interno" value="{{ producto.codigo_interno }}">
+                    <input type="hidden" name="unique_id" value="{{ unique_id }}"> {# Pasa el unique_id #}
+
+                    {# Botón - Podrías deshabilitarlo si valor es 0 o "Consultar" #}
+                    <button type="submit" class="btn btn-secondary" {% if producto.valor == 0 %}disabled title="Precio no disponible"{% endif %}>
+                        Agregar al carrito
+                    </button>
+                </form>
+            </div>
+        {% endfor %}
+    </div>
+{% elif not error_api %}
+    <p>No hay productos disponibles en este momento.</p>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_css %}
+{# Opcional: Añadir algo de CSS para que se vea mejor la cuadrícula #}
+<style>
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Columnas responsivas */
+        gap: 20px; /* Espacio entre tarjetas */
+        padding: 20px;
+    }
+    .product-card {
+        border: 1px solid #ddd;
+        padding: 15px;
+        text-align: center;
+        background-color: #f9f9f9;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; /* Empuja el botón hacia abajo */
+    }
+    .product-card img {
+        max-width: 100%;
+        height: 200px; /* Altura fija para imágenes */
+        object-fit: contain; /* Escala la imagen manteniendo aspecto, puede ser 'cover' */
+        margin-bottom: 10px;
+    }
+    .product-card h2 {
+        font-size: 1.2em;
+        margin-bottom: 10px;
+        min-height: 40px; /* Evita saltos de altura por nombres largos/cortos */
+    }
+    .product-description {
+        font-size: 0.9em;
+        color: #555;
+        flex-grow: 1; /* Ocupa el espacio disponible */
+        margin-bottom: 10px;
+    }
+    .product-card .precio {
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 15px;
+    }
+    .product-card form {
+        margin-top: auto; /* Empuja el formulario/botón hacia abajo si es necesario */
+    }
+</style>
 {% endblock %}
