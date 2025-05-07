@@ -292,3 +292,18 @@ def confirmar_pago(request):
             return HttpResponse("No se recibió respuesta de Transbank.")
     except Exception as e:
         return HttpResponse(f"Error interno: {str(e)}")
+    
+
+from django.core.cache import cache
+
+def obtener_tipo_cambio():
+    rate = cache.get('usd_clp_rate')
+    if not rate:
+        try:
+            response = requests.get("https://apiferremas-production.up.railway.app/apiferremas/currency/exchange-rate", timeout=5)
+            if response.ok:
+                rate = response.json().get('rate', 0)
+                cache.set('usd_clp_rate', rate, timeout=3600)  # Cache por 1 hora
+        except requests.exceptions.RequestException:
+            rate = 0
+    return rate
