@@ -17,6 +17,7 @@ from django.urls import reverse
 import requests
 from django.conf import settings
 import logging 
+from decimal import Decimal, InvalidOperation 
 
 # Configura un logger básico
 logging.basicConfig(level=logging.INFO)
@@ -48,8 +49,7 @@ def tienda_view(request):
             productos_data = prod_response.json()
             logger.info(f"Datos JSON de productos obtenidos. Número: {len(productos_data)}")
             for producto in productos_data:
-                # producto['precio_display'] = producto.get('valor', "Consultar") # Usa 'valor' si existe
-                producto['precio_form'] = producto.get('valor', 0) # Usa 'valor' si existe
+                producto['precio_form'] = producto.get('valor', 0)
                 if not producto.get('descripcion'):
                     producto['descripcion'] = f"{producto.get('nombre', 'Producto')} - {producto.get('marca', '')}"
                 if not producto.get('url_imagen'):
@@ -104,9 +104,7 @@ def pagina_contacto(request):
     """
     Vista para mostrar el formulario de contacto.
     """
-    # Aquí podrías pasar un formulario de Django si lo usas,
-    # pero para un textarea simple no es estrictamente necesario para el render inicial.
-    return render(request, 'web/contacto.html') # Asegúrate que la ruta sea correcta
+    return render(request, 'web/contacto.html') 
 
 def procesar_contacto(request):
     if request.method == 'POST':
@@ -123,10 +121,10 @@ def procesar_contacto(request):
 
         if request.user.is_authenticated:
             nombre_cliente = request.user.get_full_name()
-            if not nombre_cliente: # Si get_full_name está vacío
+            if not nombre_cliente: 
                 nombre_cliente = request.user.username
             correo_cliente = request.user.email
-            if not correo_cliente: # Si el usuario no tiene email registrado
+            if not correo_cliente: 
                 correo_cliente = f"{request.user.username}@ferremas-placeholder.com"
 
         # Preparar el cuerpo (payload) para la API
@@ -138,14 +136,13 @@ def procesar_contacto(request):
 
         try:
             # Realizar la petición POST a la API
-            # Es buena idea añadir headers y un timeout
             headers = {'Content-Type': 'application/json'}
             response = requests.post(api_url_contacto, json=payload, headers=headers, timeout=10)
 
             # Verificar si la petición fue exitosa (código 2xx)
             response.raise_for_status() # Lanza una excepción para errores HTTP 4xx/5xx
 
-            # Procesar la respuesta de la API (opcional, pero bueno para confirmar)
+            # Procesar la respuesta de la API 
             api_response_data = response.json()
             if api_response_data.get("status") == "ok":
                 messages.success(request, api_response_data.get("mensaje", "¡Gracias por tu mensaje! Lo hemos recibido."))
@@ -153,7 +150,6 @@ def procesar_contacto(request):
                 # Si la API devuelve un status que no es "ok" pero no es un error HTTP
                 error_msg = api_response_data.get("mensaje", "Hubo un problema al registrar tu mensaje en el sistema externo.")
                 messages.error(request, error_msg)
-                # Podrías querer loggear api_response_data aquí para depuración
 
         except requests.exceptions.HTTPError as e:
             # Errores HTTP devueltos por la API (4xx, 5xx)
@@ -165,17 +161,14 @@ def procesar_contacto(request):
             except ValueError: # Si la respuesta de error no es JSON
                 error_detail += f": {e.response.text[:200]}" # Muestra parte del texto
             messages.error(request, f'Hubo un error al enviar tu mensaje al sistema. {error_detail}')
-            # logger.error(f"Error HTTP al llamar a API de contacto: {e.response.status_code} - {e.response.text}")
 
         except requests.exceptions.RequestException as e:
             # Errores de conexión, timeout, etc.
             messages.error(request, f'Hubo un problema de conexión al intentar enviar tu mensaje: {e}. Por favor, inténtalo más tarde.')
-            # logger.error(f"Error de conexión al llamar a API de contacto: {e}")
 
         except Exception as e:
             # Otros errores inesperados
             messages.error(request, f'Ocurrió un error inesperado: {e}. Por favor, inténtalo de nuevo.')
-            # logger.error(f"Error inesperado en procesar_contacto: {e}", exc_info=True)
 
         return redirect('pagina_contacto') # Redirige de nuevo a la página de contacto
 
@@ -188,12 +181,35 @@ def inicio(request):
     context = {}
     return render(request, 'web/inicio.html', context)
 
-def Carrito(request):
-    articulo = articulo.objects.all()
-    total = sum(float(articulo.precio) for articulo in articulo)
-    print("Artículos:", articulo)
-    print("Total:", total)
-    return render(request, 'web/carrito.html', {'articulos': articulo, 'total': total})
+@login_required 
+def Carrito(request): 
+    articulos_en_carrito = []
+    total_carrito = Decimal('0.00')
+
+    try:
+        carrito_usuario, creado = carrito.objects.get_or_create(usuario=request.user)
+
+        if not creado:
+            articulos_en_carrito = carrito_usuario.productos.all()
+            for art in articulos_en_carrito:
+                total_carrito += art.precio # Suma directa de Decimals
+        # Si el carrito fue 'creado' ahora, estará vacío, así que articulos_en_carrito=[] y total_carrito=0.00
+
+    except Exception as e:
+        # Capturar otros posibles errores, aunque get_or_create es bastante robusto
+        logger.error(f"Error inesperado al obtener el carrito para {request.user.username}: {e}", exc_info=True)
+        messages.error(request, "Ocurrió un error al cargar tu carrito. Inténtalo de nuevo.")
+        # Podrías redirigir a la tienda o a la página de inicio
+        # return redirect('tienda')
+
+    logger.debug(f"Artículos en carrito para {request.user.username}: {list(articulos_en_carrito)}")
+    logger.debug(f"Total del carrito para {request.user.username}: {total_carrito}")
+
+    context = {
+        'articulos': articulos_en_carrito,
+        'total': total_carrito,
+    }
+    return render(request, 'web/carrito.html', context)
 
 def eliminar_carrito(request):
     if request.method == "POST":
@@ -205,14 +221,50 @@ def eliminar_carrito(request):
 @login_required
 def agregar_al_carrito(request):
     if request.method == "POST":
-        nombre_articulo = request.POST.get('nombre_articulo')
-        precio = request.POST.get('precio')
-        carrito_A = carrito.objects.get_or_create(usuario=request.user)
-        nuevo_articulo = articulo(nombre_articulo=nombre_articulo, precio=precio)
-        nuevo_articulo.save()
-        carrito_A.productos.add(nuevo_articulo)
-        return redirect(request.META.get('HTTP_REFERER', 'web/tienda.html'))
-    return redirect('web/tienda.html')
+        nombre_articulo_str = request.POST.get('nombre_articulo')
+        precio_str = request.POST.get('precio')
+        # Opcional: id_articulo_api = request.POST.get('id_articulo') si quieres referenciar el producto de la API
+
+        # --- Validación básica ---
+        if not nombre_articulo_str or not precio_str:
+            messages.error(request, "Faltan datos del producto para agregarlo al carrito.")
+            return redirect(request.META.get('HTTP_REFERER', 'tienda')) # Volver a la tienda
+
+        try:
+            # Convertir precio a Decimal para asegurar que es un número válido
+            # y para consistencia con el DecimalField del modelo
+            precio_decimal = Decimal(precio_str)
+            if precio_decimal <= 0: # No permitir precios cero o negativos
+                messages.warning(request, "El precio del producto no es válido.")
+                return redirect(request.META.get('HTTP_REFERER', 'tienda'))
+        except (ValueError, TypeError, InvalidOperation):
+            messages.error(request, "El precio del producto es inválido.")
+            return redirect(request.META.get('HTTP_REFERER', 'tienda'))
+
+        # --- Obtener o crear el carrito del usuario ---
+        # Desempaquetar la tupla devuelta por get_or_create:
+        carrito_obj, creado = carrito.objects.get_or_create(usuario=request.user)
+        
+        try:
+            nuevo_articulo = articulo(
+                nombre_articulo=nombre_articulo_str,
+                precio=precio_decimal # Usar el precio validado y convertido a Decimal
+            )
+            nuevo_articulo.save()
+
+            # --- Añadir el nuevo artículo al campo ManyToMany 'productos' del carrito ---
+            carrito_obj.productos.add(nuevo_articulo)
+            messages.success(request, f"'{nuevo_articulo.nombre_articulo}' fue agregado a tu carrito.")
+
+        except Exception as e:
+            logger.error(f"Error al crear o agregar artículo al carrito para {request.user.username}: {e}", exc_info=True)
+            messages.error(request, "Ocurrió un error al agregar el producto al carrito.")
+
+        # Redirigir a la página anterior (normalmente la tienda o el modal)
+        return redirect(request.META.get('HTTP_REFERER', 'tienda')) # Ajusta el fallback si es necesario
+
+    # Si no es POST, redirigir a la tienda (o a donde sea apropiado)
+    return redirect('tienda')
 
 def register(request):
     if request.method == 'GET':
