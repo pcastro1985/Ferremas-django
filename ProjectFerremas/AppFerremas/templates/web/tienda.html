@@ -49,6 +49,7 @@
             data-imagen="{{ producto.url_imagen | default:'https://via.placeholder.com/200x200.png?text=Sin+Imagen' }}"
             data-descripcion="{{ producto.descripcion | default:'Descripción no disponible' }}"
             data-precio="{{ producto.valor | default:'Consultar' }}"
+            data-precio-usd="{{ producto.precio_usd | default:'Consultar' }}"
             data-precio-form="{{ producto.precio_form | default:0 }}"
             data-marca="{{ producto.marca | default:'' }}"
             data-codigo="{{ producto.codigo_interno | default:'' }}"
@@ -57,7 +58,12 @@
                 <h2 class="nombre">{{ producto.nombre }}</h2>
                 <img src="{{ producto.url_imagen }}" alt="Imagen de {{ producto.nombre }}">
                 <p class="product-description text-white">{{ producto.descripcion | default:"Descripción no disponible" }}</p>
-                <p class="precio text-white">Precio: ${{ producto.valor | default:"Consultar" }}</p> {# Usando producto.valor #}
+                <p class="precio text-white">Precio: ${{ producto.valor | default:"Consultar" }}</p>
+                {% if producto.precio_usd %}
+                    <p class="precio-usd text-white">Precio USD: ${{ producto.precio_usd }}</p>
+                {% else %}
+                    <p class="precio-usd text-white">Precio USD: Consultar</p>
+                {% endif %}
                 <button type="button" class="btn btn-outline-primary btn-ver-mas">Ver más</button>
             </div>
         {% endfor %}
@@ -78,7 +84,7 @@
                 <h2 id="modal-product-name">Nombre del Producto</h2>
                 <p id="modal-product-description" class="mb-3">Descripción detallada del producto.</p>
                 <p class="h4 mb-3">Precio: $<span id="modal-product-price">0.00</span></p>
-
+                <p class="h5 mb-3">Precio USD: $<span id="modal-product-price-usd">0.00</span></p>
                 <div class="mb-3">
                     <label for="modal-sucursal-select" class="form-label">Seleccionar sucursal para ver disponibilidad:</label>
                     <select id="modal-sucursal-select" name="id_sucursal" class="form-select">
@@ -202,6 +208,9 @@
         modalProductDescription.textContent = cardData.descripcion;
         modalProductPrice.textContent = cardData.precio;
 
+        document.getElementById('modal-product-price-usd').textContent = 
+        cardData.precioUsd || 'Consultar';
+
         // Poblar los inputs del formulario del modal
         modalIdArticuloInput.value = cardData.idArticulo; // Obtener de data-id-articulo
         modalNombreArticuloFormInput.value = cardData.nombre;
@@ -234,6 +243,7 @@
                 imagen: card.dataset.imagen,
                 descripcion: card.dataset.descripcion,
                 precio: card.dataset.precio,
+                precioUsd: card.dataset.precioUsd,
                 precioForm: card.dataset.precioForm,
                 marca: card.dataset.marca,
                 codigo: card.dataset.codigo

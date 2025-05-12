@@ -29,6 +29,7 @@ def tienda_view(request):
     categorias_api_url = "https://apiferremas-production.up.railway.app/apiferremas/productos/categorias"
     sucursales_api_url = "https://apiferremas-production.up.railway.app/apiferremas/sucursales/todas/" 
 
+    cambio_dolar = obtener_tipo_cambio()
     productos_data = []
     categorias_data = []
     sucursales_data = [] 
@@ -50,10 +51,17 @@ def tienda_view(request):
             logger.info(f"Datos JSON de productos obtenidos. Número: {len(productos_data)}")
             for producto in productos_data:
                 producto['precio_form'] = producto.get('valor', 0)
+                 # Calcular precio en dólares para cada producto
+                for producto in productos_data:
+                    if producto.get('valor') and cambio_dolar:
+                        producto['precio_usd'] = round(float(producto['valor']) / cambio_dolar, 2)
+                    else:
+                        producto['precio_usd'] = None
                 if not producto.get('descripcion'):
                     producto['descripcion'] = f"{producto.get('nombre', 'Producto')} - {producto.get('marca', '')}"
                 if not producto.get('url_imagen'):
                     producto['url_imagen'] = 'https://placehold.co/600x400/transparent/F00'
+            
         else:
             logger.error(f"Error al obtener productos. Código: {prod_response.status_code}")
             error_api_productos = f"No se pudieron cargar los productos (Error: {prod_response.status_code})."
@@ -96,7 +104,8 @@ def tienda_view(request):
         'unique_id': unique_id,
         'error_api_productos': error_api_productos,
         'error_api_categorias': error_api_categorias,
-        'error_api_sucursales': error_api_sucursales, 
+        'error_api_sucursales': error_api_sucursales,
+        'cambio_dolar': cambio_dolar, 
     }
     return render(request, 'web/tienda.html', context)
 
@@ -185,6 +194,8 @@ def inicio(request):
 def Carrito(request): 
     articulos_en_carrito = []
     total_carrito = Decimal('0.00')
+    total_carrito_usd = Decimal('0.00')
+    cambio_dolar = obtener_tipo_cambio()  # Obtener el tipo de cambio
 
     try:
         carrito_usuario, creado = carrito.objects.get_or_create(usuario=request.user)
@@ -192,22 +203,23 @@ def Carrito(request):
         if not creado:
             articulos_en_carrito = carrito_usuario.productos.all()
             for art in articulos_en_carrito:
-                total_carrito += art.precio # Suma directa de Decimals
-        # Si el carrito fue 'creado' ahora, estará vacío, así que articulos_en_carrito=[] y total_carrito=0.00
+                total_carrito += art.precio
+                # Calcular precio en dólares para cada artículo
+                if cambio_dolar:
+                    art.precio_usd = round(float(art.precio) / cambio_dolar, 2)
+                    total_carrito_usd += Decimal(art.precio_usd)
+                else:
+                    art.precio_usd = None
 
     except Exception as e:
-        # Capturar otros posibles errores, aunque get_or_create es bastante robusto
         logger.error(f"Error inesperado al obtener el carrito para {request.user.username}: {e}", exc_info=True)
         messages.error(request, "Ocurrió un error al cargar tu carrito. Inténtalo de nuevo.")
-        # Podrías redirigir a la tienda o a la página de inicio
-        # return redirect('tienda')
-
-    logger.debug(f"Artículos en carrito para {request.user.username}: {list(articulos_en_carrito)}")
-    logger.debug(f"Total del carrito para {request.user.username}: {total_carrito}")
 
     context = {
         'articulos': articulos_en_carrito,
         'total': total_carrito,
+        'total_usd': round(total_carrito_usd, 2) if cambio_dolar else None,
+        'cambio_dolar': cambio_dolar,
     }
     return render(request, 'web/carrito.html', context)
 

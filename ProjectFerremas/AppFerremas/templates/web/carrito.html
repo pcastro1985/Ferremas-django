@@ -17,51 +17,67 @@
     {% endif %}
 
     {% if articulos %}
-        <table class="table table-striped table-hover">
-            <thead class="table-dark">
-                <tr>
-                    <th>Nombre del Artículo</th>
-                    <th>Precio Unitario</th>
-                    {# Si añades cantidad al modelo 'articulo' o a una tabla intermedia, iría aquí #}
-                    {# <th>Cantidad</th> #}
-                    {# <th>Subtotal</th> #}
-                </tr>
-            </thead>
-            <tbody>
-                {% for art in articulos %}
-                <tr>
-                    <td>{{ art.nombre_articulo }}</td>
-                    <td>${{ art.precio | floatformat:2 }}</td> {# floatformat:2 para mostrar siempre 2 decimales #}
-                </tr>
-                {% endfor %}
-            </tbody>
-            <tfoot>
-                <tr>
-                    {# Ajusta colspan si añades columnas de cantidad/subtotal #}
-                    <td colspan="1" class="text-end fw-bold">Total del Carrito:</td>
-                    <td class="fw-bold">${{ total | floatformat:2 }}</td>
-                </tr>
-            </tfoot>
-        </table>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="w-50">Producto</th>
+                        <th class="text-end">Precio Unitario</th>
+                        <th class="text-end">Equivalente USD</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for art in articulos %}
+                    <tr>
+                        <td>{{ art.nombre_articulo }}</td>
+                        <td class="text-end">${{ art.precio | floatformat:0 }}</td>
+                        <td class="text-end">
+                            {% if art.precio_usd %}
+                                ${{ art.precio_usd | floatformat:2 }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-group-divider">
+                    <tr>
+                        <th class="text-start">Total</th>
+                        <th class="text-end">${{ total | floatformat:0 }}</th>
+                        <th class="text-end">
+                            {% if total_usd %}
+                                ${{ total_usd | floatformat:2 }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
 
-        <div class="d-flex justify-content-between align-items-center mt-4 mb-5">
-            <form action="{% url 'eliminar_carrito' %}" method="post" class="d-inline">
+        <div class="d-flex justify-content-between mt-4 mb-5">
+            <form action="{% url 'eliminar_carrito' %}" method="post">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-danger">Vaciar Carrito</button>
+                <button type="submit" class="btn btn-outline-danger">
+                    <i class="bi bi-trash"></i> Vaciar Carrito
+                </button>
             </form>
-            {% if articulos %} {# Botón de pago solo si hay artículos #}
-            <form action="{% url 'iniciar_pago' %}" method="post" class="d-inline">
+            <form action="{% url 'iniciar_pago' %}" method="post">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-primary btn-lg px-5">Proceder al Pago</button>
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="bi bi-credit-card"></i> Proceder al Pago
+                </button>
             </form>
-            {% endif %}
         </div>
     {% else %}
-        <div class="text-center mt-5 py-5">
-            <p class="lead">Tu carrito de compras está vacío.</p>
-            <img src="{% static 'img/empty_cart.svg' %}" alt="Carrito Vacío" style="max-width: 200px; margin-bottom: 20px;"> {# Ejemplo de imagen #}
-            <br>
-            <a href="{% url 'tienda' %}" class="btn btn-outline-primary">Explorar Productos</a>
+        <div class="text-center py-5 my-5">
+            <img src="{% static 'img/empty_cart.svg' %}" alt="Carrito vacío" class="img-fluid mb-4" style="max-width: 200px;">
+            <h4 class="mb-3">Tu carrito está vacío</h4>
+            <a href="{% url 'tienda' %}" class="btn btn-primary">
+                <i class="bi bi-arrow-left"></i> Volver a la tienda
+            </a>
         </div>
     {% endif %}
 </div>
