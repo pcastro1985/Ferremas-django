@@ -341,16 +341,14 @@ def confirmar_pago(request):
         tx = Transaction(WebpayOptions(settings.TRANBANK_COMMERCE_CODE, settings.TRANBANK_API_KEY, IntegrationType.TEST))
         response = tx.commit(token_ws)
         if response and response['status'] == 'AUTHORIZED':
-
-            # Obtener el carrito de la sesión
-            carrito = request.session.get('carrito', {})
+            # Vaciar el carrito del usuario
+            try:
+                carrito_usuario = carrito.objects.get(usuario=request.user)
+                carrito_usuario.productos.all().delete()  # Elimina todos los artículos asociados
+                carrito_usuario.delete()  # Opcional: eliminar el carrito completamente
+            except carrito.DoesNotExist:
+                pass  # No hay carrito que vaciar
             
-            for producto_id, cantidad in carrito.items():
-                producto = articulo.objects.get(id_articulo=producto_id)
-                print(f"Producto: {producto.nombre_articulo}, Cantidad: {cantidad}")
-            
-         
-
             return render(request, 'web/confirmacion_pago.html', {'response': response})
         else:
             return HttpResponse("No se recibió respuesta de Transbank.")

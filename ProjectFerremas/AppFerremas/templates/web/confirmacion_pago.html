@@ -3,7 +3,6 @@
 {% block content %}
 {% load static %}
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -28,6 +27,10 @@
                     <li>Monto: <strong>${{ response.amount }}</strong></li>
                     <li>Código de autorización: <strong>{{ response.authorization_code }}</strong></li>
                 </ul>
+                <!-- Botón para redirigir manualmente -->
+                <div class="mt-4">
+                    <a href="{% url 'inicio' %}" class="btn btn-primary">Volver al Inicio</a>
+                </div>
                 <div class="d-flex justify-content-center mt-3">
                     <div class="loader"></div> 
                 </div>
@@ -38,11 +41,8 @@
     <script>
         setTimeout(function(){
             window.location.href = "{% url 'tienda' %}";
-        }, 60000);  
+        }, 60000);  // Redirige después de 60 segundos (ajusta este tiempo según necesites)
     </script>
 </body>
 </html>
-
-
-
 {% endblock %}
