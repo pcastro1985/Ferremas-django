@@ -39,19 +39,11 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'carrito' %}active{% endif %}" href="{% url 'carrito' %}">Carrito</a>
                     </li>
-                    {% endif %}
-                    {# Ejemplo de Dropdown (puedes quitarlo si no lo necesitas) #}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMore" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            Más
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownMore">
-                            <li><a class="dropdown-item" href="#">Action</a></li>
-                            <li><a class="dropdown-item" href="#">Another action</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#">Something else here</a></li>
-                        </ul>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'stock' %}active{% endif %}" href="{% url 'stock' %}">Stock por tienda</a>
                     </li>
+                    {% endif %}
+                    
                 </ul>
 
                 {# Lista de navegación para el usuario/login a la derecha #}

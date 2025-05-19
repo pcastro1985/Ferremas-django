@@ -60,7 +60,7 @@ def tienda_view(request):
                 if not producto.get('descripcion'):
                     producto['descripcion'] = f"{producto.get('nombre', 'Producto')} - {producto.get('marca', '')}"
                 if not producto.get('url_imagen'):
-                    producto['url_imagen'] = 'https://placehold.co/600x400/transparent/F00'
+                    producto['url_imagen'] = 'https://placehold.co/600x400'
             
         else:
             logger.error(f"Error al obtener productos. Código: {prod_response.status_code}")
@@ -371,3 +371,12 @@ def obtener_tipo_cambio():
         except requests.exceptions.RequestException:
             rate = 0
     return rate
+
+@login_required
+def stock(request):
+    """
+    Vista para la página de stock por sucursal.
+    Los datos se cargarán vía JavaScript.
+    """
+    context = {} # Puedes pasar datos iniciales si los necesitas, pero las APIs se llamarán desde JS
+    return render(request, 'web/stock.html', context)

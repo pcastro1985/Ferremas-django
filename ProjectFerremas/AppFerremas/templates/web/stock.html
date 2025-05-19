@@ -1,0 +1,185 @@
+{% extends 'index.html' %}
+{% load static %}
+{# {% load l10n %} No parece que estés usando l10n aquí, puedes quitarlo si no es necesario #}
+
+{% block title %}Stock por Sucursal | Ferremas{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4 text-center">Stock de Productos por Sucursal</h1>
+
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-6">
+            <label for="sucursal-stock-select" class="form-label">Selecciona una Sucursal:</label>
+            <select id="sucursal-stock-select" class="form-select form-select-lg">
+                <option value="">-- Cargando sucursales... --</option>
+                {# Las opciones se poblarán con JavaScript #}
+            </select>
+        </div>
+    </div>
+
+    <div id="stock-results-container">
+        {# Aquí se mostrará la tabla de stock o mensajes de estado #}
+        <p id="stock-status-message" class="text-center text-muted" style="display: none;">
+            Por favor, selecciona una sucursal para ver el stock.
+        </p>
+        <div class="table-responsive" style="display: none;"> {# Oculto inicialmente #}
+            <table class="table table-striped table-hover table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID Producto</th>
+                        <th>Nombre del Producto</th>
+                        <th>Marca</th>
+                        <th>Modelo</th>
+                        <th>Cantidad en Stock</th>
+                    </tr>
+                </thead>
+                <tbody id="stock-table-body">
+                    {# Las filas de la tabla se generarán con JavaScript #}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilos para mejorar la presentación */
+    .form-select-lg {
+        font-size: 1.25rem; /* Hace el select un poco más grande */
+    }
+    #stock-status-message.loading::before {
+        content: "";
+        display: inline-block;
+        width: 1.5rem;
+        height: 1.5rem;
+        border: 3px solid rgba(0,0,0,.2);
+        border-radius: 50%;
+        border-top-color: var(--bs-primary, #0d6efd); /* Usa color primario de Bootstrap si está disponible */
+        animation: spinner-border .75s linear infinite;
+        vertical-align: text-bottom;
+        margin-right: 0.5rem;
+    }
+    @keyframes spinner-border {
+      to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sucursalSelect = document.getElementById('sucursal-stock-select');
+    const stockTableBody = document.getElementById('stock-table-body');
+    const stockTableResponsiveDiv = document.querySelector('#stock-results-container .table-responsive');
+    const stockStatusMessage = document.getElementById('stock-status-message');
+
+    const SUCURSALES_API_URL = "https://apiferremas-production.up.railway.app/apiferremas/sucursales/todas/";
+    const STOCK_API_BASE_URL = "https://apiferremas-production.up.railway.app/apiferremas/productos/stock_sucursal/";
+
+    // --- 1. Cargar Sucursales al Iniciar la Página ---
+    async function cargarSucursales() {
+        try {
+            const response = await fetch(SUCURSALES_API_URL);
+            if (!response.ok) {
+                throw new Error(`Error ${response.status} al cargar sucursales.`);
+            }
+            const sucursales = await response.json();
+
+            sucursalSelect.innerHTML = '<option value="">-- Selecciona una sucursal --</option>'; // Reset y opción por defecto
+            sucursales.forEach(sucursal => {
+                const option = document.createElement('option');
+                option.value = sucursal.id_sucursal;
+                option.textContent = sucursal.nombre;
+                sucursalSelect.appendChild(option);
+            });
+            stockStatusMessage.textContent = 'Por favor, selecciona una sucursal para ver el stock.';
+            stockStatusMessage.style.display = 'block';
+
+        } catch (error) {
+            console.error("Error cargando sucursales:", error);
+            sucursalSelect.innerHTML = '<option value="">Error al cargar sucursales</option>';
+            stockStatusMessage.textContent = `Error al cargar sucursales: ${error.message}`;
+            stockStatusMessage.style.display = 'block';
+            stockStatusMessage.classList.remove('text-muted');
+            stockStatusMessage.classList.add('text-danger');
+        }
+    }
+
+    // --- 2. Cargar Stock al Seleccionar una Sucursal ---
+    async function cargarStockPorSucursal(sucursalId) {
+        stockTableBody.innerHTML = ''; // Limpiar tabla anterior
+        stockTableResponsiveDiv.style.display = 'none'; // Ocultar tabla mientras carga
+        stockStatusMessage.textContent = 'Cargando stock...';
+        stockStatusMessage.classList.add('loading'); // Para el spinner CSS
+        stockStatusMessage.classList.remove('text-danger', 'text-success', 'text-muted');
+        stockStatusMessage.style.display = 'block';
+
+        if (!sucursalId) {
+            stockStatusMessage.textContent = 'Por favor, selecciona una sucursal para ver el stock.';
+            stockStatusMessage.classList.remove('loading');
+            stockStatusMessage.classList.add('text-muted');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${STOCK_API_BASE_URL}${sucursalId}`);
+            if (!response.ok) {
+                 let errorMsg = `Error ${response.status}`;
+                try {
+                    const errorData = await response.json(); // Intenta obtener detalles del error
+                    errorMsg += `: ${errorData.detail || errorData.message || 'No se pudo obtener el stock.'}`;
+                } catch (e) { /* La respuesta de error no era JSON */ }
+                throw new Error(errorMsg);
+            }
+            const stockProductos = await response.json();
+
+            if (stockProductos && stockProductos.length > 0) {
+                stockProductos.forEach(producto => {
+                    const row = stockTableBody.insertRow();
+                    row.insertCell().textContent = producto.id_producto;
+                    row.insertCell().textContent = producto.nombre_producto;
+                    row.insertCell().textContent = producto.marca || '-'; // Mostrar '-' si no hay marca/modelo
+                    row.insertCell().textContent = producto.modelo || '-';
+                    const cantidadCell = row.insertCell();
+                    cantidadCell.textContent = producto.cantidad;
+                    // Aplicar color según cantidad
+                    if (producto.cantidad <= 0) {
+                        cantidadCell.classList.add('text-danger', 'fw-bold');
+                    } else if (producto.cantidad <= 10) { // Ejemplo de umbral bajo
+                        cantidadCell.classList.add('text-warning');
+                    } else {
+                        cantidadCell.classList.add('text-success');
+                    }
+                });
+                stockTableResponsiveDiv.style.display = 'block'; // Mostrar tabla
+                stockStatusMessage.style.display = 'none'; // Ocultar mensaje de estado
+            } else {
+                stockStatusMessage.textContent = 'No hay información de stock para esta sucursal o no se encontraron productos.';
+                stockStatusMessage.classList.add('text-info');
+            }
+
+        } catch (error) {
+            console.error(`Error cargando stock para sucursal ${sucursalId}:`, error);
+            stockStatusMessage.textContent = `Error al cargar el stock: ${error.message}`;
+            stockStatusMessage.classList.add('text-danger');
+        } finally {
+            stockStatusMessage.classList.remove('loading'); // Quitar spinner
+        }
+    }
+
+    // --- Event Listener para el Select de Sucursales ---
+    sucursalSelect.addEventListener('change', function() {
+        const selectedSucursalId = this.value;
+        cargarStockPorSucursal(selectedSucursalId);
+    });
+
+    // --- Carga Inicial de Sucursales ---
+    cargarSucursales();
+
+});
+</script>
+{% endblock %}

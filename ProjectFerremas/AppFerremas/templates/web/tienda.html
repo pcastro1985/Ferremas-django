@@ -46,7 +46,7 @@
             data-category-id="{{ producto.categoria_id_categoria | default:'' }}"
             {# Almacenar todos los datos necesarios para el modal directamente en la tarjeta #}
             data-nombre="{{ producto.nombre }}"
-            data-imagen="{{ producto.url_imagen | default:'https://via.placeholder.com/200x200.png?text=Sin+Imagen' }}"
+            data-imagen="{{ producto.url_imagen | default:'https://placehold.co/600x400' }}"
             data-descripcion="{{ producto.descripcion | default:'Descripción no disponible' }}"
             data-precio="{{ producto.valor | default:'Consultar' }}"
             data-precio-usd="{{ producto.precio_usd | default:'Consultar' }}"
