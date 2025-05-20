@@ -10,7 +10,9 @@ class carrito(models.Model):
     
 class articulo(models.Model):
     id = models.AutoField(primary_key=True)
+    id_api_producto = models.IntegerField(null=True, blank=True)  # ✅ Campo nuevo para el ID real de la API
     nombre_articulo = models.CharField(max_length=200, blank=False, null=False)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
+
     def __str__(self):
         return self.nombre_articulo

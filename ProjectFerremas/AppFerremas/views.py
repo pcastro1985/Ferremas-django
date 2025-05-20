@@ -235,47 +235,44 @@ def agregar_al_carrito(request):
     if request.method == "POST":
         nombre_articulo_str = request.POST.get('nombre_articulo')
         precio_str = request.POST.get('precio')
-        # Opcional: id_articulo_api = request.POST.get('id_articulo') si quieres referenciar el producto de la API
+        id_api_str = request.POST.get('id_articulo')
+        id_sucursal = request.POST.get("id_sucursal_seleccionada")  # ✅
 
-        # --- Validación básica ---
-        if not nombre_articulo_str or not precio_str:
-            messages.error(request, "Faltan datos del producto para agregarlo al carrito.")
-            return redirect(request.META.get('HTTP_REFERER', 'tienda')) # Volver a la tienda
+        if not nombre_articulo_str or not precio_str or not id_api_str or not id_sucursal:
+            messages.error(request, "Faltan datos del producto o sucursal para agregar al carrito.")
+            return redirect('tienda')
 
         try:
-            # Convertir precio a Decimal para asegurar que es un número válido
-            # y para consistencia con el DecimalField del modelo
             precio_decimal = Decimal(precio_str)
-            if precio_decimal <= 0: # No permitir precios cero o negativos
+            if precio_decimal <= 0:
                 messages.warning(request, "El precio del producto no es válido.")
-                return redirect(request.META.get('HTTP_REFERER', 'tienda'))
+                return redirect('tienda')
         except (ValueError, TypeError, InvalidOperation):
             messages.error(request, "El precio del producto es inválido.")
-            return redirect(request.META.get('HTTP_REFERER', 'tienda'))
+            return redirect('tienda')
 
-        # --- Obtener o crear el carrito del usuario ---
-        # Desempaquetar la tupla devuelta por get_or_create:
         carrito_obj, creado = carrito.objects.get_or_create(usuario=request.user)
-        
+
         try:
             nuevo_articulo = articulo(
+                id_api_producto=int(id_api_str),  # ✅ Requiere que el modelo tenga este campo
                 nombre_articulo=nombre_articulo_str,
-                precio=precio_decimal # Usar el precio validado y convertido a Decimal
+                precio=precio_decimal
             )
             nuevo_articulo.save()
-
-            # --- Añadir el nuevo artículo al campo ManyToMany 'productos' del carrito ---
             carrito_obj.productos.add(nuevo_articulo)
-            messages.success(request, f"'{nuevo_articulo.nombre_articulo}' fue agregado a tu carrito.")
 
+            # ✅ Guardar la sucursal seleccionada en la sesión
+            request.session["sucursal_id"] = int(id_sucursal)
+            
+            messages.success(request, f"'{nuevo_articulo.nombre_articulo}' fue agregado a tu carrito.")
         except Exception as e:
             logger.error(f"Error al crear o agregar artículo al carrito para {request.user.username}: {e}", exc_info=True)
             messages.error(request, "Ocurrió un error al agregar el producto al carrito.")
 
-        # Redirigir a la página anterior (normalmente la tienda o el modal)
-        return redirect(request.META.get('HTTP_REFERER', 'tienda')) # Ajusta el fallback si es necesario
+        referer = request.META.get('HTTP_REFERER')
+        return redirect(referer or 'tienda')
 
-    # Si no es POST, redirigir a la tienda (o a donde sea apropiado)
     return redirect('tienda')
 
 def register(request):
@@ -333,26 +330,78 @@ def iniciar_pago(request):
         return HttpResponse("Método no permitido.", status=405)
 
 def confirmar_pago(request):
+    print("🚩 Entró a confirmar_pago")
     token_ws = request.GET.get('token_ws')
     if not token_ws:
+        print("⛔ Token no proporcionado.")
         return HttpResponse("Token no proporcionado.")
 
     try:
-        tx = Transaction(WebpayOptions(settings.TRANBANK_COMMERCE_CODE, settings.TRANBANK_API_KEY, IntegrationType.TEST))
+        tx = Transaction(WebpayOptions(
+            settings.TRANBANK_COMMERCE_CODE,
+            settings.TRANBANK_API_KEY,
+            IntegrationType.TEST
+        ))
         response = tx.commit(token_ws)
+
+        print("✅ Respuesta de Transbank:", response)
+
         if response and response['status'] == 'AUTHORIZED':
-            # Vaciar el carrito del usuario
+            productos_para_api = []
+
+            # ✅ Obtener sucursal desde sesión
+            sucursal_id = request.session.get('sucursal_id')
+            if not sucursal_id:
+                print("❌ No se encontró sucursal en sesión.")
+                return HttpResponse("No se encontró la sucursal seleccionada.")
+
             try:
                 carrito_usuario = carrito.objects.get(usuario=request.user)
-                carrito_usuario.productos.all().delete()  # Elimina todos los artículos asociados
-                carrito_usuario.delete()  # Opcional: eliminar el carrito completamente
+                for producto in carrito_usuario.productos.all():
+                    if producto.id_api_producto:
+                        productos_para_api.append({
+                            'id_producto': producto.id_api_producto,
+                            'cantidad': 1
+                        })
             except carrito.DoesNotExist:
-                pass  # No hay carrito que vaciar
-            
+                productos_para_api = []
+
+            print("🧾 Productos para la API:", productos_para_api)
+            print("🏪 Sucursal:", sucursal_id)
+
+            try:
+                payload = {
+                    'sucursal_id': sucursal_id,
+                    'productos': productos_para_api
+                }
+                print("📦 Payload enviado a API:", payload)
+
+                respuesta_api = requests.post(
+                    'https://apiferremas-production.up.railway.app/apiferremas/pedido/pedido_sucursal',
+                    json=payload
+                )
+
+                print("📬 Código respuesta:", respuesta_api.status_code)
+                print("📨 Cuerpo respuesta:", respuesta_api.text)
+
+                if respuesta_api.status_code != 200:
+                    print("❌ Error al registrar el pedido:", respuesta_api.text)
+            except Exception as e:
+                print("❌ Error al conectar con la API:", str(e))
+
+            try:
+                carrito_usuario.productos.all().delete()
+                carrito_usuario.delete()
+            except Exception as e:
+                print("⚠️ Error al vaciar el carrito:", str(e))
+
             return render(request, 'web/confirmacion_pago.html', {'response': response})
+
         else:
-            return HttpResponse("No se recibió respuesta de Transbank.")
+            print("❌ Transacción no autorizada:", response.get('status'))
+            return HttpResponse("La transacción no fue autorizada por Transbank.")
     except Exception as e:
+        print("❌ Error general en confirmar_pago:", str(e))
         return HttpResponse(f"Error interno: {str(e)}")
     
 

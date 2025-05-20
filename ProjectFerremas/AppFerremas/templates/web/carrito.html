@@ -58,27 +58,30 @@
                 </tfoot>
             </table>
         </div>
+<div class="d-flex justify-content-between mt-4 mb-5">
+    <form action="{% url 'eliminar_carrito' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-danger">
+            <i class="bi bi-trash"></i> Vaciar Carrito
+        </button>
+    </form>
+    <form action="{% url 'iniciar_pago' %}" method="post">
+        {% csrf_token %}
+        <!-- Campo oculto para enviar la divisa seleccionada al backend -->
+        <input type="hidden" name="selected_currency" id="selected_currency_input" value="CLP">
 
-        <div class="d-flex justify-content-between mt-4 mb-5">
-            <form action="{% url 'eliminar_carrito' %}" method="post">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-outline-danger">
-                    <i class="bi bi-trash"></i> Vaciar Carrito
-                </button>
-            </form>
-            <form action="{% url 'iniciar_pago' %}" method="post">
-                {% csrf_token %}
-                <!-- Campo oculto para enviar la divisa seleccionada al backend -->
-                <input type="hidden" name="selected_currency" id="selected_currency_input" value="CLP">
-                <button type="submit" class="btn btn-primary px-4">
-                    <i class="bi bi-credit-card"></i> Proceder al Pago
-                </button>
-            </form>
-        </div>
+        <!-- ✅ Campo oculto nuevo: se extrae desde la sesión -->
+        <input type="hidden" name="id_sucursal" value="{{ request.session.sucursal_id }}">
 
-    {% else %}
-        <div class="text-center py-5 my-5">
-            <img src="{% static 'img/empty_cart.svg' %}" alt="Carrito vacío" class="img-fluid mb-4" style="max-width: 200px;">
+        <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-credit-card"></i> Proceder al Pago
+        </button>
+    </form>
+</div>
+
+{% else %}
+<div class="text-center py-5 my-5">
+    <img src="{% static 'img/empty_cart.svg' %}" alt="Carrito vacío" class="img-fluid mb-4" style="max-width: 200px;">
             <h4 class="mb-3">Tu carrito está vacío</h4>
             <a href="{% url 'tienda' %}" class="btn btn-primary">
                 <i class="bi bi-arrow-left"></i> Volver a la tienda
